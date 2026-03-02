@@ -1,43 +1,61 @@
-import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Trade } from '../../utils/riskEngine';
+import { supabase } from '../../utils/supabase';
 
 export default function AddTradeScreen() {
     const router = useRouter();
     const [pair, setPair] = useState('');
-    const [lotSize, setLotSize] = useState('');
-    const [emotionScale, setEmotionScale] = useState('5');
+    const [type, setType] = useState<'BUY' | 'SELL'>('BUY');
+    const [amount, setAmount] = useState('');
+    const [entryPrice, setEntryPrice] = useState('');
+    const [stopLoss, setStopLoss] = useState('');
+    const [emotionScore, setEmotionScore] = useState('5');
+    const [loading, setLoading] = useState(false);
 
     const handleSave = async () => {
-        if (!pair || !lotSize) return;
-
-        const newTrade: Trade = {
-            pair: pair.toUpperCase(),
-            lotSize: parseFloat(lotSize) || 0,
-            emotionScale: parseInt(emotionScale, 10) || 5,
-            timestamp: new Date()
-        };
-
-        try {
-            const currentData = await AsyncStorage.getItem('riskos_trades');
-            const trades = currentData ? JSON.parse(currentData) : [];
-            trades.push(newTrade);
-            await AsyncStorage.setItem('riskos_trades', JSON.stringify(trades));
-            router.back();
-        } catch (e) {
-            console.error(e);
+        if (!pair || !amount || !entryPrice) {
+            Alert.alert("Validation Error", "Please fill in all required fields (Pair, Amount, Entry Price)");
+            return;
         }
+
+        setLoading(true);
+
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) {
+            Alert.alert("Auth Error", "You must be logged in to log a trade.");
+            setLoading(false);
+            return;
+        }
+
+        const { error } = await supabase.from('trades').insert([{
+            user_id: user.id,
+            pair: pair.toUpperCase(),
+            type,
+            amount: parseFloat(amount),
+            entry_price: parseFloat(entryPrice),
+            stop_loss: stopLoss ? parseFloat(stopLoss) : null,
+            emotion_score: parseInt(emotionScore, 10)
+        }]);
+
+        if (error) {
+            Alert.alert("Database Error", error.message);
+            console.error(error);
+        } else {
+            router.back();
+        }
+
+        setLoading(false);
     };
 
     return (
         <ScrollView className="flex-1 bg-slate-900 px-6 pt-6">
-            <View className="gap-6 mt-4">
+            <View className="gap-6 mt-4 pb-12">
                 <View>
-                    <Text className="text-slate-400 text-sm font-bold uppercase tracking-widest mb-2 ml-1">Instrument</Text>
+                    <Text className="text-slate-400 text-sm font-bold uppercase tracking-widest mb-2 ml-1">Instrument (Pair)</Text>
                     <TextInput
-                        className="w-full bg-slate-800 text-white rounded-2xl px-5 py-5 text-lg border border-slate-700"
+                        className="w-full bg-slate-800 text-white rounded-xl px-5 py-4 text-lg border border-slate-700"
                         placeholder="e.g. BTC/USD"
                         placeholderTextColor="#64748b"
                         autoCapitalize="characters"
@@ -47,27 +65,71 @@ export default function AddTradeScreen() {
                 </View>
 
                 <View>
-                    <Text className="text-slate-400 text-sm font-bold uppercase tracking-widest mb-2 ml-1">Position Size (Lots)</Text>
-                    <TextInput
-                        className="w-full bg-slate-800 text-white rounded-2xl px-5 py-5 text-lg border border-slate-700"
-                        placeholder="0.00"
-                        placeholderTextColor="#64748b"
-                        keyboardType="decimal-pad"
-                        value={lotSize}
-                        onChangeText={setLotSize}
-                    />
+                    <Text className="text-slate-400 text-sm font-bold uppercase tracking-widest mb-2 ml-1">Trade Type</Text>
+                    <View className="flex-row gap-4">
+                        <TouchableOpacity
+                            className={`flex-1 py-4 rounded-xl items-center border ${type === 'BUY' ? 'bg-emerald-500/20 border-emerald-500' : 'bg-slate-800 border-slate-700'}`}
+                            onPress={() => setType('BUY')}
+                        >
+                            <Text className={`font-bold text-lg ${type === 'BUY' ? 'text-emerald-400' : 'text-slate-400'}`}>BUY (Long)</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            className={`flex-1 py-4 rounded-xl items-center border ${type === 'SELL' ? 'bg-red-500/20 border-red-500' : 'bg-slate-800 border-slate-700'}`}
+                            onPress={() => setType('SELL')}
+                        >
+                            <Text className={`font-bold text-lg ${type === 'SELL' ? 'text-red-400' : 'text-slate-400'}`}>SELL (Short)</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
 
                 <View>
+                    <Text className="text-slate-400 text-sm font-bold uppercase tracking-widest mb-2 ml-1">Amount (Lots/Units)</Text>
+                    <TextInput
+                        className="w-full bg-slate-800 text-white rounded-xl px-5 py-4 text-lg border border-slate-700"
+                        placeholder="0.00"
+                        placeholderTextColor="#64748b"
+                        keyboardType="decimal-pad"
+                        value={amount}
+                        onChangeText={setAmount}
+                    />
+                </View>
+
+                <View className="flex-row gap-4">
+                    <View className="flex-1">
+                        <Text className="text-slate-400 text-sm font-bold uppercase tracking-widest mb-2 ml-1">Entry Price</Text>
+                        <TextInput
+                            className="w-full bg-slate-800 text-white rounded-xl px-4 py-4 text-lg border border-slate-700"
+                            placeholder="0.00"
+                            placeholderTextColor="#64748b"
+                            keyboardType="decimal-pad"
+                            value={entryPrice}
+                            onChangeText={setEntryPrice}
+                        />
+                    </View>
+                    <View className="flex-1">
+                        <Text className="text-slate-400 text-sm font-bold uppercase tracking-widest mb-2 ml-1">Stop Loss</Text>
+                        <TextInput
+                            className="w-full bg-slate-800 text-white rounded-xl px-4 py-4 text-lg border border-slate-700"
+                            placeholder="Optional"
+                            placeholderTextColor="#64748b"
+                            keyboardType="decimal-pad"
+                            value={stopLoss}
+                            onChangeText={setStopLoss}
+                        />
+                    </View>
+                </View>
+
+
+                <View>
                     <Text className="text-slate-400 text-sm font-bold uppercase tracking-widest mb-2 ml-1">Emotional Heat (1-10)</Text>
-                    <View className="flex-row items-center justify-between bg-slate-800 rounded-2xl p-2 border border-slate-700">
+                    <View className="flex-row items-center justify-between bg-slate-800 rounded-xl p-2 border border-slate-700">
                         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((val) => (
                             <TouchableOpacity
                                 key={val}
-                                className={`w-8 h-10 rounded-lg items-center justify-center ${parseInt(emotionScale) === val ? 'bg-orange-500' : 'bg-transparent'}`}
-                                onPress={() => setEmotionScale(val.toString())}
+                                className={`w-8 h-10 rounded-lg items-center justify-center ${parseInt(emotionScore) === val ? 'bg-orange-500' : 'bg-transparent'}`}
+                                onPress={() => setEmotionScore(val.toString())}
                             >
-                                <Text className={`font-bold ${parseInt(emotionScale) === val ? 'text-white' : 'text-slate-500'}`}>
+                                <Text className={`font-bold ${parseInt(emotionScore) === val ? 'text-white' : 'text-slate-500'}`}>
                                     {val}
                                 </Text>
                             </TouchableOpacity>
@@ -76,10 +138,11 @@ export default function AddTradeScreen() {
                 </View>
 
                 <TouchableOpacity
-                    className="w-full bg-blue-600 py-5 rounded-2xl mt-8 active:bg-blue-700 shadow-lg shadow-blue-600/30"
+                    className={`w-full py-5 rounded-xl mt-4 shadow-lg ${loading ? 'bg-blue-800/50' : 'bg-blue-600 active:bg-blue-700 shadow-blue-600/30'}`}
                     onPress={handleSave}
+                    disabled={loading}
                 >
-                    <Text className="text-center text-white font-bold text-xl">Log Protocol</Text>
+                    <Text className="text-center text-white font-bold text-xl">{loading ? 'Logging...' : 'Log Protocol'}</Text>
                 </TouchableOpacity>
             </View>
         </ScrollView>

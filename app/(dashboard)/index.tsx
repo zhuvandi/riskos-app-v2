@@ -1,30 +1,57 @@
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { calculateRiskScore, calculateDiscipline, calculateEmotionalHeat, Trade } from '../../utils/riskEngine';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Activity, Flame, ShieldAlert, Plus } from 'lucide-react-native';
+import { supabase } from '../../utils/supabase';
 
 export default function Dashboard() {
     const router = useRouter();
     const [trades, setTrades] = useState<Trade[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
     const loadTrades = async () => {
         try {
-            const data = await AsyncStorage.getItem('riskos_trades');
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const { data, error } = await supabase
+                .from('trades')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
             if (data) {
-                setTrades(JSON.parse(data));
+                const formattedTrades: Trade[] = data.map(t => ({
+                    pair: t.pair,
+                    lotSize: t.amount,
+                    emotionScale: t.emotion_score,
+                    timestamp: new Date(t.created_at)
+                }));
+                setTrades(formattedTrades);
             }
         } catch (e) {
-            console.error(e);
+            console.error("Error loading trades:", e);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
         }
     };
 
     useFocusEffect(
         useCallback(() => {
+            setLoading(true);
             loadTrades();
         }, [])
     );
+
+    const onRefresh = useCallback(() => {
+        setRefreshing(true);
+        loadTrades();
+    }, []);
 
     const riskScore = calculateRiskScore(trades);
     const discipline = calculateDiscipline(trades);
@@ -32,7 +59,10 @@ export default function Dashboard() {
 
     return (
         <View className="flex-1 bg-slate-900">
-            <ScrollView className="flex-1 px-6 pt-6 content-container">
+            <ScrollView
+                className="flex-1 px-6 pt-6"
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" />}
+            >
                 <View className="flex-row justify-between items-center mb-8">
                     <Text className="text-3xl font-extrabold text-white tracking-tight">Metrics</Text>
                     <TouchableOpacity
@@ -50,7 +80,7 @@ export default function Dashboard() {
                         </View>
                         <View className="flex-1">
                             <Text className="text-slate-400 text-sm font-semibold uppercase tracking-widest mb-1">Risk Score</Text>
-                            <Text className="text-4xl font-black text-white">{riskScore}</Text>
+                            <Text className="text-4xl font-black text-white">{loading ? '...' : riskScore}</Text>
                         </View>
                     </View>
 
@@ -60,7 +90,7 @@ export default function Dashboard() {
                         </View>
                         <View className="flex-1">
                             <Text className="text-slate-400 text-sm font-semibold uppercase tracking-widest mb-1">Discipline</Text>
-                            <Text className="text-4xl font-black text-white">{discipline}%</Text>
+                            <Text className="text-4xl font-black text-white">{loading ? '...' : `${discipline}%`}</Text>
                         </View>
                     </View>
 
@@ -70,21 +100,25 @@ export default function Dashboard() {
                         </View>
                         <View className="flex-1">
                             <Text className="text-slate-400 text-sm font-semibold uppercase tracking-widest mb-1">Emotional Heat</Text>
-                            <Text className="text-4xl font-black text-white">{heat}/10</Text>
+                            <Text className="text-4xl font-black text-white">{loading ? '...' : `${heat}/10`}</Text>
                         </View>
                     </View>
                 </View>
 
-                <View className="mt-10 mb-8">
+                <View className="mt-10 mb-8 pb-8">
                     <Text className="text-2xl font-bold text-white mb-5 tracking-tight">Recent Logs</Text>
-                    {trades.length === 0 ? (
+                    {loading && trades.length === 0 ? (
+                        <Text className="text-slate-500 text-center py-10 text-lg">Loading sync...</Text>
+                    ) : trades.length === 0 ? (
                         <Text className="text-slate-500 text-center py-10 text-lg">No trades logged yet.</Text>
                     ) : (
-                        trades.slice(-5).reverse().map((t, i) => (
+                        trades.slice(0, 5).map((t, i) => (
                             <View key={i} className="bg-slate-800/60 p-5 rounded-3xl mb-4 border border-slate-700/50 flex-row justify-between items-center">
                                 <View>
                                     <Text className="text-white font-bold text-xl mb-1">{t.pair}</Text>
-                                    <Text className="text-slate-400 text-sm font-medium">{new Date(t.timestamp).toLocaleDateString()}</Text>
+                                    <Text className="text-slate-400 text-sm font-medium">
+                                        {t.timestamp.toLocaleDateString()} {t.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </Text>
                                 </View>
                                 <View className="items-end">
                                     <Text className="text-white font-bold text-lg">{t.lotSize} Lots</Text>
