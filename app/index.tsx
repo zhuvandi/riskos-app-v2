@@ -62,6 +62,24 @@ export default function LoginScreen() {
                         {loading ? 'Entering...' : 'Enter Console'}
                     </Text>
                 </TouchableOpacity>
+
+                <TouchableOpacity
+                    className="w-full bg-slate-700 py-5 rounded-2xl mt-4 active:bg-slate-600 border border-slate-500 shadow-lg"
+                    onPress={async () => {
+                        setLoading(true);
+                        // Bypass Auth: setting a local mock flag to enable the Dashboard and Add Trade screens to function offline-first for tester.
+                        import('@react-native-async-storage/async-storage').then(async ({ default: AsyncStorage }) => {
+                            await AsyncStorage.setItem('TESTER_MOCK_AUTH', 'true');
+                            setLoading(false);
+                            router.replace('/(dashboard)');
+                        });
+                    }}
+                    disabled={loading}
+                >
+                    <Text className="text-center text-orange-400 font-black text-xl tracking-widest">
+                        TEST: ENTER AS TESTER
+                    </Text>
+                </TouchableOpacity>
             </View>
         </View>
     );
