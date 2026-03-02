@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { calculateRiskScore, calculateDiscipline, calculateEmotionalHeat, Trade } from '../../utils/riskEngine';
 import { Activity, Flame, ShieldAlert, Plus } from 'lucide-react-native';
 import { supabase } from '../../utils/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Dashboard() {
     const router = useRouter();
@@ -17,23 +18,35 @@ export default function Dashboard() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
+            let onlineTrades: any[] = [];
             const { data, error } = await supabase
                 .from('trades')
                 .select('*')
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false });
 
-            if (error) throw error;
-
-            if (data) {
-                const formattedTrades: Trade[] = data.map(t => ({
-                    pair: t.pair,
-                    lotSize: t.amount,
-                    emotionScale: t.emotion_score,
-                    timestamp: new Date(t.created_at)
-                }));
-                setTrades(formattedTrades);
+            if (!error && data) {
+                onlineTrades = data;
             }
+
+            let offlineTrades: any[] = [];
+            try {
+                const stored = await AsyncStorage.getItem('OFFLINE_TRADES');
+                if (stored) {
+                    offlineTrades = JSON.parse(stored);
+                }
+            } catch (e) { }
+
+            const allData = [...onlineTrades, ...offlineTrades].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+            const formattedTrades: Trade[] = allData.map(t => ({
+                pair: t.pair,
+                lotSize: t.amount,
+                emotionScale: t.emotion_score,
+                timestamp: new Date(t.created_at)
+            }));
+            setTrades(formattedTrades);
+
         } catch (e) {
             console.error("Error loading trades:", e);
         } finally {

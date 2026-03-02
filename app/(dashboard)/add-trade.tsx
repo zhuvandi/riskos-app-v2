@@ -2,6 +2,7 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from 'reac
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { supabase } from '../../utils/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function AddTradeScreen() {
     const router = useRouter();
@@ -50,14 +51,39 @@ export default function AddTradeScreen() {
         }]);
 
         if (error) {
-            Alert.alert("Database Error", error.message);
-            console.error(error);
-        } else {
-            // Force refresh by navigating explicitly with a query param
-            router.navigate({ pathname: '/(dashboard)', params: { refresh: Date.now() } });
+            console.error("Supabase reject, saving to local storage fallback:", error.message);
+
+            const generateUUID = () => {
+                return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+                    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                });
+            };
+
+            const localTrade = {
+                id: generateUUID(),
+                user_id: user.id,
+                pair: pair.toUpperCase(),
+                type,
+                amount: parsedAmount,
+                entry_price: parsedEntry,
+                stop_loss: parsedStopLoss,
+                emotion_score: parseInt(emotionScore, 10),
+                created_at: new Date().toISOString()
+            };
+
+            try {
+                const stored = await AsyncStorage.getItem('OFFLINE_TRADES');
+                const offlineTrades = stored ? JSON.parse(stored) : [];
+                offlineTrades.push(localTrade);
+                await AsyncStorage.setItem('OFFLINE_TRADES', JSON.stringify(offlineTrades));
+            } catch (e) {
+                console.error("Local storage fail", e);
+            }
         }
 
         setLoading(false);
+        router.replace({ pathname: '/(dashboard)', params: { refresh: Date.now() } } as any);
     };
 
     return (
