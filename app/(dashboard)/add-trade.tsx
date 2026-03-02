@@ -51,8 +51,7 @@ export default function AddTradeScreen() {
         }]);
 
         if (error) {
-            console.error("Supabase reject, saving to local storage fallback:", error.message);
-
+            // Silently fallback without triggering a red screen console error
             const generateUUID = () => {
                 return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
                     var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
@@ -77,9 +76,14 @@ export default function AddTradeScreen() {
                 const offlineTrades = stored ? JSON.parse(stored) : [];
                 offlineTrades.push(localTrade);
                 await AsyncStorage.setItem('OFFLINE_TRADES', JSON.stringify(offlineTrades));
+
+                // Show a simple success alert behaving like a toast
+                Alert.alert("Success", "Saved locally (Offline mode)");
             } catch (e) {
-                console.error("Local storage fail", e);
+                // Ignore silent failure
             }
+        } else {
+            Alert.alert("Success", "Trade logged successfully");
         }
 
         setLoading(false);

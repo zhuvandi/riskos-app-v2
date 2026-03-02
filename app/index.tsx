@@ -1,4 +1,5 @@
 import { View, Text, TextInput, TouchableOpacity } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { supabase } from '../utils/supabase';
@@ -28,59 +29,61 @@ export default function LoginScreen() {
     }
 
     return (
-        <View className="flex-1 justify-center px-8 bg-slate-900">
-            <View className="mb-12">
-                <Text className="text-5xl font-extrabold text-white mb-2 tracking-tighter">RiskOS</Text>
-                <Text className="text-lg text-slate-400 font-medium">Master your trading psychology.</Text>
+        <SafeAreaView className="flex-1 bg-slate-900">
+            <View className="flex-1 justify-center px-8">
+                <View className="mb-12">
+                    <Text className="text-5xl font-extrabold text-white mb-2 tracking-tighter">RiskOS</Text>
+                    <Text className="text-lg text-slate-400 font-medium">Master your trading psychology.</Text>
+                </View>
+
+                <View className="gap-4">
+                    <TextInput
+                        className="w-full bg-slate-800 text-white rounded-2xl px-5 py-5 text-lg border border-slate-700"
+                        placeholder="Email address"
+                        placeholderTextColor="#64748b"
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        value={email}
+                        onChangeText={setEmail}
+                    />
+                    <TextInput
+                        className="w-full bg-slate-800 text-white rounded-2xl px-5 py-5 text-lg border border-slate-700"
+                        placeholder="Password"
+                        placeholderTextColor="#64748b"
+                        secureTextEntry
+                        value={password}
+                        onChangeText={setPassword}
+                    />
+
+                    <TouchableOpacity
+                        className="w-full bg-blue-600 py-5 rounded-2xl mt-4 active:bg-blue-700 shadow-lg shadow-blue-600/30"
+                        onPress={handleLogin}
+                        disabled={loading}
+                    >
+                        <Text className="text-center text-white font-bold text-xl">
+                            {loading ? 'Entering...' : 'Enter Console'}
+                        </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        className="w-full bg-slate-700 py-5 rounded-2xl mt-4 active:bg-slate-600 border border-slate-500 shadow-lg"
+                        onPress={async () => {
+                            setLoading(true);
+                            // Bypass Auth: setting a local mock flag to enable the Dashboard and Add Trade screens to function offline-first for tester.
+                            import('@react-native-async-storage/async-storage').then(async ({ default: AsyncStorage }) => {
+                                await AsyncStorage.setItem('TESTER_MOCK_AUTH', 'true');
+                                setLoading(false);
+                                router.replace('/(dashboard)');
+                            });
+                        }}
+                        disabled={loading}
+                    >
+                        <Text className="text-center text-orange-400 font-black text-xl tracking-widest">
+                            TEST: ENTER AS TESTER
+                        </Text>
+                    </TouchableOpacity>
+                </View>
             </View>
-
-            <View className="gap-4">
-                <TextInput
-                    className="w-full bg-slate-800 text-white rounded-2xl px-5 py-5 text-lg border border-slate-700"
-                    placeholder="Email address"
-                    placeholderTextColor="#64748b"
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    value={email}
-                    onChangeText={setEmail}
-                />
-                <TextInput
-                    className="w-full bg-slate-800 text-white rounded-2xl px-5 py-5 text-lg border border-slate-700"
-                    placeholder="Password"
-                    placeholderTextColor="#64748b"
-                    secureTextEntry
-                    value={password}
-                    onChangeText={setPassword}
-                />
-
-                <TouchableOpacity
-                    className="w-full bg-blue-600 py-5 rounded-2xl mt-4 active:bg-blue-700 shadow-lg shadow-blue-600/30"
-                    onPress={handleLogin}
-                    disabled={loading}
-                >
-                    <Text className="text-center text-white font-bold text-xl">
-                        {loading ? 'Entering...' : 'Enter Console'}
-                    </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    className="w-full bg-slate-700 py-5 rounded-2xl mt-4 active:bg-slate-600 border border-slate-500 shadow-lg"
-                    onPress={async () => {
-                        setLoading(true);
-                        // Bypass Auth: setting a local mock flag to enable the Dashboard and Add Trade screens to function offline-first for tester.
-                        import('@react-native-async-storage/async-storage').then(async ({ default: AsyncStorage }) => {
-                            await AsyncStorage.setItem('TESTER_MOCK_AUTH', 'true');
-                            setLoading(false);
-                            router.replace('/(dashboard)');
-                        });
-                    }}
-                    disabled={loading}
-                >
-                    <Text className="text-center text-orange-400 font-black text-xl tracking-widest">
-                        TEST: ENTER AS TESTER
-                    </Text>
-                </TouchableOpacity>
-            </View>
-        </View>
+        </SafeAreaView>
     );
 }
