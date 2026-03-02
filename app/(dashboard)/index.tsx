@@ -110,7 +110,10 @@ export default function Dashboard() {
                     {loading && trades.length === 0 ? (
                         <Text className="text-slate-500 text-center py-10 text-lg">Loading sync...</Text>
                     ) : trades.length === 0 ? (
-                        <Text className="text-slate-500 text-center py-10 text-lg">No trades logged yet.</Text>
+                        <View className="items-center py-10">
+                            <Text className="text-white text-2xl font-bold mb-2">Welcome to RiskOS Console</Text>
+                            <Text className="text-slate-500 text-center text-lg px-4 gap-2">You haven't logged any trades yet. The Risk Score needs data to analyze your psychology.</Text>
+                        </View>
                     ) : (
                         trades.slice(0, 5).map((t, i) => (
                             <View key={i} className="bg-slate-800/60 p-5 rounded-3xl mb-4 border border-slate-700/50 flex-row justify-between items-center">

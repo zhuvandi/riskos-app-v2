@@ -11,12 +11,18 @@ export default function LoginScreen() {
 
     async function handleLogin() {
         setLoading(true);
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        setLoading(false);
-        if (!error) {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+            // Attempt signup if login fails
+            const { error: signUpError } = await supabase.auth.signUp({ email, password });
+            setLoading(false);
+            if (signUpError) {
+                alert(signUpError.message);
+                return;
+            }
             router.replace('/(dashboard)');
         } else {
-            // For demo purposes, we will bypass login strictly if no account holds
+            setLoading(false);
             router.replace('/(dashboard)');
         }
     }
