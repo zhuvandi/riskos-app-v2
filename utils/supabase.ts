@@ -19,7 +19,7 @@ const originalGetUser = supabase.auth.getUser.bind(supabase.auth);
 supabase.auth.getUser = async (jwt?: string) => {
     const isMock = await AsyncStorage.getItem('TESTER_MOCK_AUTH');
     if (isMock === 'true') {
-        return { data: { user: { id: 'tester-mock-id-123', email: 'test@riskos.com', role: 'authenticated', aud: 'authenticated' } as any }, error: null };
+        return { data: { user: { id: '00000000-0000-0000-0000-000000000000', email: 'test@riskos.com', role: 'authenticated', aud: 'authenticated' } as any }, error: null };
     }
     return originalGetUser(jwt);
 };

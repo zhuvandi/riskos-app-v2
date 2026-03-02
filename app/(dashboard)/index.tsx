@@ -1,5 +1,5 @@
 import { View, Text, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { calculateRiskScore, calculateDiscipline, calculateEmotionalHeat, Trade } from '../../utils/riskEngine';
 import { Activity, Flame, ShieldAlert, Plus } from 'lucide-react-native';
@@ -7,6 +7,7 @@ import { supabase } from '../../utils/supabase';
 
 export default function Dashboard() {
     const router = useRouter();
+    const { refresh } = useLocalSearchParams();
     const [trades, setTrades] = useState<Trade[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -45,7 +46,7 @@ export default function Dashboard() {
         useCallback(() => {
             setLoading(true);
             loadTrades();
-        }, [])
+        }, [refresh])
     );
 
     const onRefresh = useCallback(() => {

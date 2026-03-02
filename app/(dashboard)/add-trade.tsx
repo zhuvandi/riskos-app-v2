@@ -29,13 +29,23 @@ export default function AddTradeScreen() {
             return;
         }
 
+        const parsedAmount = Number(amount);
+        const parsedEntry = Number(entryPrice);
+        const parsedStopLoss = stopLoss ? Number(stopLoss) : null;
+
+        if (isNaN(parsedAmount) || isNaN(parsedEntry) || (parsedStopLoss !== null && isNaN(parsedStopLoss))) {
+            Alert.alert("Validation Error", "Please enter valid numeric values for Amount and Prices.");
+            setLoading(false);
+            return;
+        }
+
         const { error } = await supabase.from('trades').insert([{
             user_id: user.id,
             pair: pair.toUpperCase(),
             type,
-            amount: parseFloat(amount),
-            entry_price: parseFloat(entryPrice),
-            stop_loss: stopLoss ? parseFloat(stopLoss) : null,
+            amount: parsedAmount,
+            entry_price: parsedEntry,
+            stop_loss: parsedStopLoss,
             emotion_score: parseInt(emotionScore, 10)
         }]);
 
@@ -43,7 +53,8 @@ export default function AddTradeScreen() {
             Alert.alert("Database Error", error.message);
             console.error(error);
         } else {
-            router.back();
+            // Force refresh by navigating explicitly with a query param
+            router.navigate({ pathname: '/(dashboard)', params: { refresh: Date.now() } });
         }
 
         setLoading(false);
